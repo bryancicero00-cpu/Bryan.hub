@@ -1,0 +1,58 @@
+local UserInputService = game:GetService("UserInputService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+
+local player = Players.LocalPlayer
+local parryEvent = ReplicatedStorage:WaitForChild("ParryEvent") -- criar no ReplicatedStorage
+local PARry_COOLDOWN = 1.0 -- segundos
+local lastParry = 0
+
+-- Substitua pelo seu ID de animação de parry
+local PARRY_ANIM_ID = "rbxassetid://PUT_YOUR_ANIMATION_ID_HERE"
+
+local function setupCharacter(char)
+	local humanoid = char:WaitForChild("Humanoid")
+	-- criar Animation object
+	local anim = Instance.new("Animation")
+	anim.Name = "ParryAnim"
+	anim.AnimationId = PARRY_ANIM_ID
+
+	-- monta animator
+	local animator = humanoid:FindFirstChildOfClass("Animator")
+	if not animator then
+		animator = Instance.new("Animator")
+		animator.Parent = humanoid
+	end
+
+	return humanoid, animator, anim
+end
+
+local humanoid, animator, animObj
+local function onCharacterAdded(char)
+	humanoid, animator, animObj = setupCharacter(char)
+end
+
+if player.Character then
+	onCharacterAdded(player.Character)
+end
+player.CharacterAdded:Connect(onCharacterAdded)
+
+local function doParry()
+	if not humanoid or not animator or not animObj then return end
+	if tick() - lastParry < PARry_COOLDOWN then return end
+	lastParry = tick()
+	local track = animator:LoadAnimation(animObj)
+	track.Priority = Enum.AnimationPriority.Action
+	track:Play()
+	-- avisar servidor (envia timestamp do cliente)
+	parryEvent:FireServer(tick())
+end
+
+UserInputService.InputBegan:Connect(function(input, processed)
+	if processed then return end
+	-- Ex.: tecla Q para parry — ajuste como preferir
+	if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == Enum.KeyCode.Q then
+		doParry()
+	end
+	-- opcional: bind em mouse button, gamepad, etc.
+end)
